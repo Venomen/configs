@@ -1,0 +1,6 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =4
+let g:netrw_dirhist_1='/Users/dawid/ansible'
+let g:netrw_dirhist_2='/Users/dawid/.config'
+let g:netrw_dirhist_3='/Users/dawid/venvs/syncbox-install'
+let g:netrw_dirhist_4='/Users/dawid/venvs/syncbox-install/syncbox'
