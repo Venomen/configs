@@ -519,3 +519,7 @@ alias du="ncdu --color dark -rr -x --exclude .git --exclude node_modules"
 alias help='tldr'
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# save live to history & share it
+setopt inc_append_history
+setopt share_history
