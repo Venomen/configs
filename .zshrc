@@ -352,14 +352,18 @@ fi
 # Discover the running ssh-agent or start it
 # (OSX only: remove com.openssh.ssh-agent from launchctl!)
 # Using ssh-agent from brew
-export SSH_AGENT_CHECK=$(ps aux | grep /opt/homebrew/bin/ssh-agent | grep -v color | awk {'print $2'} | head -n 1)
+export SSH_AGENT_CHECK=$(ps aux | grep /opt/homebrew/bin/ssh-agent | grep -v color | awk {'print $2'})
 
 if [ -n "$SSH_AGENT_CHECK" ]; then
   echo "Ok, ssh-agent found." ;
+  export SSH_AGENT_PID=$(ps aux | grep /opt/homebrew/bin/ssh-agent | grep -v color | awk {'print $2'})
+  export SSH_AUTH_SOCK=$(cat ${HOME}/.ssh-auth-sock)
 else
   echo "No running ssh-agent found. Starting ssh-agent..."
   eval $(/opt/homebrew/bin/ssh-agent)
   /opt/homebrew/bin/ssh-add -t 28800
+  echo "$SSH_AUTH_SOCK" > ${HOME}/.ssh-auth-sock
+  echo "$SSH_AGENT_PID" > ${HOME}/.ssh-agent-pid
 fi
 
 alias lc='colorls -r'
