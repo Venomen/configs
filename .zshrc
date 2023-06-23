@@ -1,3 +1,5 @@
+# Fig pre block. Keep at the top of this file.
+[[ -f "$HOME/.fig/shell/zshrc.pre.zsh" ]] && builtin source "$HOME/.fig/shell/zshrc.pre.zsh"
 # zshrc  - ZSH Configuration file
 # Author - Dawid Węgliński <cla@gentoo.org>
 # Credits - Some of this functions comes from zshwiki, some from .zshrc files
@@ -7,9 +9,10 @@
 # date - 24.07.2007
 
 # Modifications for OSX and few customs - Dawid Deręgowski <deregowski.net> 
+ZSH_CACHE_DIR=${HOME}/.zsh/cache
+fpath=(~/.zsh/completion $fpath)
 
-export PATH="/usr/local/opt/python/libexec/bin:$PATH"
-export PATH="/Users/dawid/Library/Python/3.7/bin:$PATH"
+export BW_SESSION="your_BW_SESSION_here"
 export ECHANGELOG_USER="Dawid Deręgowski <deregowski.net>"
 
 # Prompt colors
@@ -23,7 +26,8 @@ local GREY=$'%{\e[1;30m%}'
 local NORMAL=$'%{\e[0m%}'
 
 # completion
-autoload -U compinit promptinit tetris zcalc url-quote-magic colors
+autoload -U compinit promptinit tetris zcalc url-quote-magic colors edit-command-line
+
 compinit
 colors
 
@@ -43,6 +47,9 @@ zstyle ':completion:*:cd:*' ignored-patterns '(*/)#CVS'
 
 zle '-N' tetris
 zle '-N' url-quote-magic
+zle '-N' edit-command-line
+
+bindkey '^X^e' edit-command-line
 bindkey '^T' tetris
 bindkey "\e^?" backward-delete-word
 export WORDCHARS='*?_[]~\!#$%^<>|`@#$%^*()+?'
@@ -205,18 +212,6 @@ status() {
         echo "Uptime:$(uptime)"
 }
 
-google() {
-        local str opt
-                if [ $# != 0 ]; then
-                        for i in $*; do
-                                str="$str+$i"
-                        done
-                str=`echo $str | sed 's/^\+//'`
-                opt='search?rls=pl&ie=utf-8&oe=utf-8'
-                opt="${opt}&q=${str}"
-          fi
-echo "http://www.google.pl/${opt}"
-}
 
 # Create an index with thumbs. You will need media-gfx/imagemagick to make this
 # script working.
@@ -243,24 +238,6 @@ genthumbs () {
         vim -n -c ':so $VIMRUNTIME/syntax/2html.vim' -c ':wqa' $1 > /dev/null 2> /dev/null
 }
 
-# Usefull for polish users only; shows tv program for few most watched tv
-# programs
-tv() {
-        if [[ -n ${1} ]]; then
-                case "${1}" in
-                        1) PROGRAM="TVP 1" ;;
-                        2) PROGRAM="TVP 2" ;;
-                        p) PROGRAM="Polsat" ;;
-                        t) PROGRAM="TVN" ;;
-                        4) PROGRAM="TV 4" ;;
-
-                esac
-        fi
-        wget -q -O - http://www.gazeta.pl/tv/  | grep -E "c2c4c7|c7c2af" \
-        | grep -v grot| grep -A 1 "${PROGRAM}"| html2text | iconv -f ISO8859-2 -t UTF-8
-        unset PROGRAM
-}
-
 # Files with space in the name are evil!!!!!!!!
 space_rm() {
         for file in *; do
@@ -274,14 +251,6 @@ lowercase_mv() {
                 mv ${file} ${file//(#m)[A-Z]/${(L)MATCH}}
         done
 }
-
-# Probably you will want to hash this 4 lines, or change host name
-# To know what keychain is, please visit it's project page:
-# http://www.gentoo.org/proj/en/keychain/
-if [[ ${HOST} == "sapphire" && ${UID} != "0" ]]; then
-        /usr/bin/keychain -q ~/.ssh/identity ~/.ssh/id_dsa
-        source ~/.keychain/sapphire-sh
-fi
 
 # DIE SATANA!
 die() {
@@ -329,22 +298,6 @@ ecd() {
 
 }
 
-eportdir() {
-        # does fast cache magic. portageq in particular is really slow...
-        # this makes subsequent calls to eportdir() pretty much
-        # instantaneous, as opposed to taking several seconds.
-        if [[ -n "${PORTDIR_CACHE}" ]] ; then
-            echo "${PORTDIR_CACHE}"
-        elif [[ -d "${HOME}"/gentoo/gentoo-x86 ]]; then
-            PORTDIR_CACHE="${HOME}"/gentoo/gentoo-x86 eportdir
-        elif [[ -d /usr/portage ]] ; then
-            PORTDIR_CACHE="/usr/portage" eportdir
-        else
-            PORTDIR_CACHE="$(portageq portdir )" eportdir
-        fi
-}
-
-
 efind() {
         local efinddir cat pkg
         efinddir=$(eportdir)
@@ -379,100 +332,55 @@ echo1() {
 }
 
 updaterc() {
-        wget http://dev.gentoo.org/~cla/.zshrc -O ${1}/.zshrc
-}
-
-# Check metadata files for herd and devs responsible for t3h package
-ewho() {
-        local pc d metadata f
-
-        pc=$(efind $*)   
-        d=$(eportdir)
-        f=0
-
-        if [[ $pc == "" ]] ; then
-            echo "nothing found for $*"
-            return 1
-        fi
-
-        metadata="${d}/${pc}/metadata.xml"
-        if [[ -f "${metadata}" ]] ; then
-            echo "metadata.xml says:"
-            sed -ne 's,^.*<herd>\([^<]*\)</herd>.*,  herd:  \1,p' \
-            "${metadata}"
-            sed -ne 's,^.*<email>\([^<]*\)@[^<]*</email>.*,  dev:   \1,p' \
-            "${metadata}"
-            f=1
-        fi
-
-        if [[ -d ${d}/${pc}/CVS ]] ; then
-            echo "CVS log says:"
-            pushd ${d}/${pc} > /dev/null
-            for e in *.ebuild ; do
-                echo -n "${e}: "
-                cvs log ${e} | sed -e '1,/^revision 1\.1$/d' | sed -e '2,$d' \
-                -e "s-^.*author: --" -e 's-;.*--'
-            done
-            popd > /dev/null
-            f=1
-        fi
-
-        if [[ f == 0 ]] ; then
-            echo "Nothing found"
-            return 1
-        fi
-        return 0
+        wget https://yourupdatehosthere.com/.zshrc.mac -O ~/.zshrc
 }
 
 export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
 export TERM=xterm-256color
 
-# If you need GPG some custom parameters (it should be in gpg-agent.conf already):
-#[ -f ~/.gpg-agent-info ] && source ~/.gpg-agent-info
-#if [ -S "${GPG_AGENT_INFO:*}" ]; then
-#  export GPG_AGENT_INFO
-#  export SSH_AUTH_SOCK
-#  export SSH_AGENT_PID
-#else
-#  eval $( gpg-agent -q --daemon --log-file=/Users/dawid/.gnupg/gpg-agent.log --default-cache-ttl=14400 --pinentry-program=/usr/local/bin/pinentry )
-#fi
+# Using pinentry from brew
+export GPG_AGENT_CHECK=$(pgrep gpg-agent)
+
+if [ -n "$GPG_AGENT_CHECK" ]; then
+  echo "Ok, gpg-agent found." ;
+else
+  echo "No running gpg-agent found. Starting gpg-agent..."
+  eval $(gpg-agent -q --daemon --log-file=${HOME}/.gnupg/gpg-agent.log --default-cache-ttl=28800 --pinentry-program=/opt/homebrew/bin/pinentry)
+  echo "Agent pid $(pgrep gpg-agent)"
+fi
 
 # Discover the running ssh-agent or start it
 # (OSX only: remove com.openssh.ssh-agent from launchctl!)
-export SSH_AGENT_PID=$(pgrep -U $USER ssh-agent)
-export SSH_ADD_INFO=$(ssh-add -l -t 14400 > ${HOME}/.ssh-add-info)
-export SSH_ADD_CHECK=$(cat ${HOME}/.ssh-add-info | grep SHA)
+# Using ssh-agent from brew
+export SSH_AGENT_CHECK=$(ps aux | grep /opt/homebrew/bin/ssh-agent | grep -v color | awk {'print $2'} | head -n 1)
 
-if [ -n "$SSH_AGENT_PID" -a ! -z "$SSH_ADD_CHECK" ]; then
-  echo "$SSH_AUTH_SOCK" > ${HOME}/.ssh-auth-sock
-  echo "$SSH_AGENT_PID" > ${HOME}/.ssh-agent-pid
+if [ -n "$SSH_AGENT_CHECK" ]; then
+  echo "Ok, ssh-agent found." ;
 else
-  echo "No running ssh-agent found. Running it now!"
-  ssh-add -t 14400
-  export SSH_AGENT_PID=$(pgrep -U $USER ssh-agent)
-  export SSH_AUTH_SOCK=$(lsof -U -a -p $SSH_AGENT_PID -F n | grep '^n/' | cut -c2-)
-  echo "$SSH_AUTH_SOCK" > ${HOME}/.ssh-auth-sock
-  echo "$SSH_AGENT_PID" > ${HOME}/.ssh-agent-pid
-  export SSH_ADD_INFO=$(ssh-add -l > ${HOME}/.ssh-add-info)
-  export SSH_ADD_CHECK=$(cat ${HOME}/.ssh-add-info | grep SHA)
+  echo "No running ssh-agent found. Starting ssh-agent..."
+  eval $(/opt/homebrew/bin/ssh-agent)
+  /opt/homebrew/bin/ssh-add -t 28800
 fi
-
-# add mysql bin directory
-PATH="/usr/local/Cellar/mysql/5.7.11/bin:${PATH}"
-export PATH
 
 alias lc='colorls -r'
 
-[[ -n "$SSH_CLIENT" ]] || export DEFAULT_USER="dawid"
+alias kns='/opt/homebrew/bin/kubens'
+
+alias kctx='/opt/homebrew/bin/kubectx'
+
+[[ -n "$SSH_CLIENT" ]] || export DEFAULT_USER="${USER}"
 
 POWERLEVEL9K_MODE='nerdfont-complete'
 #POWERLEVEL9K_MODE='awesome-fontconfig'
 #POWERLEVEL9K_MODE='awesome-patched'
 
 #ZSH_THEME="powerlevel9k/powerlevel9k"
-source ~/.zsh/custom/themes/powerlevel9k/powerlevel9k.zsh-theme
 
-source /usr/local/Cellar/antigen/2.2.3/share/antigen/antigen.zsh
+source /opt/homebrew/opt/powerlevel9k/powerlevel9k.zsh-theme
+
+source /opt/homebrew/share/antigen/antigen.zsh
+
+source ~/.zsh/custom/plugins/kubectl.plugin.zsh
 
 antigen bundle desyncr/auto-ls
 
@@ -482,9 +390,11 @@ antigen bundle heroku
 antigen bundle pip
 antigen bundle lein
 antigen bundle command-not-found
+#antigen bundle unixorn/docker-helpers.zshplugin
 antigen bundle webyneter/docker-aliases.git
-antigen bundle unixorn/docker-helpers.zshplugin
 antigen bundle docker-compose
+antigen bundle kubectl
+antigen bundle docker
 
 # Syntax highlighting bundle.
 antigen bundle zsh-users/zsh-syntax-highlighting
@@ -494,19 +404,30 @@ antigen theme robbyrussell
 
 antigen apply
 
-plugins=(docker-aliases docker-helpers docker-compose docker)
+plugins=(tmux docker docker-aliases docker-helpers docker-compose git kube-ps1 kubectl)
 
-check_ip(){ ip=$1; revdns=$(dig +short -x "$ip"); dns_a=$(dig +short A "$revdns"); echo -e -n "RevDNS: $revdns\nA: $dns_a\nStatus: "; [[ "$ip" == "$dns_a" ]] && echo "OK" || echo "FAIL"; };
+KUBE_PS1_COLOR_CONTEXT="%{$FG[037]%}"
+KUBE_PS1_COLOR_NS="%{$FG[142]%}"
 
-GOBIN="/Users/dawid/go/bin/"
+PROMPT=$PROMPT'$(kube_ps1) '
+
+function check_ip () {
+  ip=$1; revdns=$(dig +short -x "$ip"); dns_a=$(dig +short A "$revdns"); echo -e -n "RevDNS: $revdns\nA: $dns_a\nStatus: "; [[ "$ip" == "$dns_a" ]] && echo "OK" || echo "FAIL" 
+}
+
+# WARNING!
+# Docker stuff - this will remove all your containers & images
+
+alias drm="docker rm $(docker ps -a | awk {'print $1'} | grep -v CONTAINER)"
+alias drmi="docker rmi $(docker images | awk {'print $3'} | grep -v IMAGE)"
+
+GOBIN="/usr/local/go/bin/"
 export GOBIN
-
-GOPATH="/Users/dawid/go"
+GOPATH="${HOME}/go/"
 export GOPATH
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 export PATH="/usr/local/sbin:$PATH"
 export ANSIBLE_INVENTORY=~/ansible_hosts
-
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 alias ping='prettyping --nolegend'
 
@@ -518,8 +439,248 @@ alias du="ncdu --color dark -rr -x --exclude .git --exclude node_modules"
 
 alias help='tldr'
 
+alias k='kubectl'
+
+alias windows='lwsm restore 2screen'
+
+alias t='/opt/homebrew/bin/terraform'
+
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # save live to history & share it
 setopt inc_append_history
 setopt share_history
+
+compdef _kubectl k
+
+##complete -F __start_kubectl k
+
+if [ -f '/etc/bash_completion.d/azure-cli' ]; then . '/etc/bash_completion.d/azure-cli'; fi
+
+if [ -f '/usr/local/bin/aws_completer' ]; then complete -C aws_completer aws; fi
+
+source <(kubectl completion zsh)
+#source <(kubectl completion zsh  | grep -v '^autoload .*compinit$')
+
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+# Convert video to gif file.
+# Usage: video2gif video_file (scale) (fps)
+video2gif() {
+  ffmpeg -y -i "${1}" -vf fps=${3:-10},scale=${2:-320}:-1:flags=lanczos,palettegen "${1}.png"
+  ffmpeg -i "${1}" -i "${1}.png" -filter_complex "fps=${3:-10},scale=${2:-320}:-1:flags=lanczos[x];[x][1:v]paletteuse" "${1}".gif
+  rm "${1}.png"
+}
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc'; fi
+
+export PATH="/opt/homebrew/opt/node@14/bin:$PATH"
+
+#compdef _dagger dagger
+
+# zsh completion for dagger                               -*- shell-script -*-
+
+__dagger_debug()
+{
+    local file="$BASH_COMP_DEBUG_FILE"
+    if [[ -n ${file} ]]; then
+        echo "$*" >> "${file}"
+    fi
+}
+
+_dagger()
+{
+    local shellCompDirectiveError=1
+    local shellCompDirectiveNoSpace=2
+    local shellCompDirectiveNoFileComp=4
+    local shellCompDirectiveFilterFileExt=8
+    local shellCompDirectiveFilterDirs=16
+
+    local lastParam lastChar flagPrefix requestComp out directive comp lastComp noSpace
+    local -a completions
+
+    __dagger_debug "\n========= starting completion logic =========="
+    __dagger_debug "CURRENT: ${CURRENT}, words[*]: ${words[*]}"
+
+    # The user could have moved the cursor backwards on the command-line.
+    # We need to trigger completion from the $CURRENT location, so we need
+    # to truncate the command-line ($words) up to the $CURRENT location.
+    # (We cannot use $CURSOR as its value does not work when a command is an alias.)
+    words=("${=words[1,CURRENT]}")
+    __dagger_debug "Truncated words[*]: ${words[*]},"
+
+    lastParam=${words[-1]}
+    lastChar=${lastParam[-1]}
+    __dagger_debug "lastParam: ${lastParam}, lastChar: ${lastChar}"
+
+    # For zsh, when completing a flag with an = (e.g., dagger -n=<TAB>)
+    # completions must be prefixed with the flag
+    setopt local_options BASH_REMATCH
+    if [[ "${lastParam}" =~ '-.*=' ]]; then
+        # We are dealing with a flag with an =
+        flagPrefix="-P ${BASH_REMATCH}"
+    fi
+
+    # Prepare the command to obtain completions
+    requestComp="${words[1]} __complete ${words[2,-1]}"
+    if [ "${lastChar}" = "" ]; then
+        # If the last parameter is complete (there is a space following it)
+        # We add an extra empty parameter so we can indicate this to the go completion code.
+        __dagger_debug "Adding extra empty parameter"
+        requestComp="${requestComp} \"\""
+    fi
+
+    __dagger_debug "About to call: eval ${requestComp}"
+
+    # Use eval to handle any environment variables and such
+    out=$(eval ${requestComp} 2>/dev/null)
+    __dagger_debug "completion output: ${out}"
+
+    # Extract the directive integer following a : from the last line
+    local lastLine
+    while IFS='\n' read -r line; do
+        lastLine=${line}
+    done < <(printf "%s\n" "${out[@]}")
+    __dagger_debug "last line: ${lastLine}"
+
+    if [ "${lastLine[1]}" = : ]; then
+        directive=${lastLine[2,-1]}
+        # Remove the directive including the : and the newline
+        local suffix
+        (( suffix=${#lastLine}+2))
+        out=${out[1,-$suffix]}
+    else
+        # There is no directive specified.  Leave $out as is.
+        __dagger_debug "No directive found.  Setting do default"
+        directive=0
+    fi
+
+    __dagger_debug "directive: ${directive}"
+    __dagger_debug "completions: ${out}"
+    __dagger_debug "flagPrefix: ${flagPrefix}"
+
+    if [ $((directive & shellCompDirectiveError)) -ne 0 ]; then
+        __dagger_debug "Completion received error. Ignoring completions."
+        return
+    fi
+
+    while IFS='\n' read -r comp; do
+        if [ -n "$comp" ]; then
+            # If requested, completions are returned with a description.
+            # The description is preceded by a TAB character.
+            # For zsh's _describe, we need to use a : instead of a TAB.
+            # We first need to escape any : as part of the completion itself.
+            comp=${comp//:/\\:}
+
+            local tab=$(printf '\t')
+            comp=${comp//$tab/:}
+
+            __dagger_debug "Adding completion: ${comp}"
+            completions+=${comp}
+            lastComp=$comp
+        fi
+    done < <(printf "%s\n" "${out[@]}")
+
+    if [ $((directive & shellCompDirectiveNoSpace)) -ne 0 ]; then
+        __dagger_debug "Activating nospace."
+        noSpace="-S ''"
+    fi
+
+    if [ $((directive & shellCompDirectiveFilterFileExt)) -ne 0 ]; then
+        # File extension filtering
+        local filteringCmd
+        filteringCmd='_files'
+        for filter in ${completions[@]}; do
+            if [ ${filter[1]} != '*' ]; then
+                # zsh requires a glob pattern to do file filtering
+                filter="\*.$filter"
+            fi
+            filteringCmd+=" -g $filter"
+        done
+        filteringCmd+=" ${flagPrefix}"
+
+        __dagger_debug "File filtering command: $filteringCmd"
+        _arguments '*:filename:'"$filteringCmd"
+    elif [ $((directive & shellCompDirectiveFilterDirs)) -ne 0 ]; then
+        # File completion for directories only
+        local subDir
+        subdir="${completions[1]}"
+        if [ -n "$subdir" ]; then
+            __dagger_debug "Listing directories in $subdir"
+            pushd "${subdir}" >/dev/null 2>&1
+        else
+            __dagger_debug "Listing directories in ."
+        fi
+
+        local result
+        _arguments '*:dirname:_files -/'" ${flagPrefix}"
+        result=$?
+        if [ -n "$subdir" ]; then
+            popd >/dev/null 2>&1
+        fi
+        return $result
+    else
+        __dagger_debug "Calling _describe"
+        if eval _describe "completions" completions $flagPrefix $noSpace; then
+            __dagger_debug "_describe found some completions"
+
+            # Return the success of having called _describe
+            return 0
+        else
+            __dagger_debug "_describe did not find completions."
+            __dagger_debug "Checking if we should do file completion."
+            if [ $((directive & shellCompDirectiveNoFileComp)) -ne 0 ]; then
+                __dagger_debug "deactivating file completion"
+
+                # We must return an error code here to let zsh know that there were no
+                # completions found by _describe; this is what will trigger other
+                # matching algorithms to attempt to find completions.
+                # For example zsh can match letters in the middle of words.
+                return 1
+            else
+                # Perform file completion
+                __dagger_debug "Activating file completion"
+
+                # We must return the result of this command, so it must be the
+                # last command, or else we must store its result to return it.
+                _arguments '*:filename:_files'" ${flagPrefix}"
+            fi
+        fi
+    fi
+}
+
+# don't run the completion function when being source-ed or eval-ed
+if [ "$funcstack[1]" = "_dagger" ]; then
+	_dagger
+fi
+
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+
+alias z="source ~/.zshrc"
+alias v="vim"
+alias awsp="source _awsp"
+
+function aws_prof {
+  local profile="${AWS_PROFILE:=default}"
+
+  echo "%{$fg_bold[blue]%}aws:(%{$fg[yellow]%}${profile}%{$fg_bold[blue]%})%{$reset_color%} "
+}
+
+PROMPT2='OTHER_PROMPT_STUFF $(aws_prof)'
+
+export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
+
+export PATH="/opt/homebrew/opt/node@16/bin:$PATH"
+export LDFLAGS="-L/opt/homebrew/opt/node@16/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/node@16/include"
+
+# Fig post block. Keep at the bottom of this file.
+[[ -f "$HOME/.fig/shell/zshrc.post.zsh" ]] && builtin source "$HOME/.fig/shell/zshrc.post.zsh"
