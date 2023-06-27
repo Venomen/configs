@@ -419,12 +419,6 @@ function check_ip () {
   ip=$1; revdns=$(dig +short -x "$ip"); dns_a=$(dig +short A "$revdns"); echo -e -n "RevDNS: $revdns\nA: $dns_a\nStatus: "; [[ "$ip" == "$dns_a" ]] && echo "OK" || echo "FAIL" 
 }
 
-# WARNING!
-# Docker stuff - this will remove all your containers & images
-
-alias drm="docker rm $(docker ps -a | awk {'print $1'} | grep -v CONTAINER)"
-alias drmi="docker rmi $(docker images | awk {'print $3'} | grep -v IMAGE)"
-
 GOBIN="/usr/local/go/bin/"
 export GOBIN
 GOPATH="${HOME}/go/"
